@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        default_schema: public
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 550MB
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: document-bucket
+  presigned-url-expiry-minutes: 60
