@@ -156,7 +156,139 @@ Ensure that your solution includes the Dockerfile and database schema script, an
 
 ### Additional Comments 💬
 
-If you have any additional notes, explanations, or assumptions regarding your implementation, feel free to include them in this section. This can help provide more context to reviewers.
+#### How to Run the Project 🐳
+
+**Prerequisites:** Docker and Docker Compose installed.
+
+```bash
+# Clone the repo and start the full stack (builds the app image automatically)
+cd docker
+docker compose up --build
+```
+
+This starts three containers:
+- **document-management-service** → `http://localhost:8080`
+- **PostgreSQL 15** → `localhost:5432`
+- **MinIO** → API `http://localhost:9000` · Console `http://localhost:9001` (user: `minioadmin` / pass: `minioadmin`)
+
+The database schema is initialized automatically via `docker/init-scripts/schema-init.sql`. The MinIO bucket (`document-bucket`) is created automatically on startup.
+
+To stop:
+```bash
+docker compose down        # stop containers
+docker compose down -v     # stop + wipe all data
+```
+
+---
+
+#### Demo Walkthrough 🎬
+
+A Postman collection is provided for easy validation:
+📄 [document-management.postman_collection.json](docs/document-management.postman_collection.json)
+
+**Import steps:**
+1. Open Postman → **Import** → select `docs/document-management.postman_collection.json`
+2. The collection has a `baseUrl` variable set to `http://localhost:8080` — no extra setup needed
+
+---
+
+**1. Upload a PDF document**
+
+Use the **Upload Document** request in the collection:
+- Set `user`, `name`, and `tags` fields in the form-data body
+- Select a PDF file for the `file` field
+- Send → expect `201 Created`
+
+```bash
+# curl equivalent
+curl -X POST http://localhost:8080/document-management/upload \
+  -F "user=john" \
+  -F "name=invoice-march.pdf" \
+  -F "tags=invoice" \
+  -F "tags=finance" \
+  -F "file=@/path/to/your/file.pdf"
+```
+
+---
+
+**2. Search documents**
+
+Use **Search Documents (no filters)** or **Search Documents (with filters)** from the collection.
+
+```bash
+# curl equivalent — with filters
+curl -X POST "http://localhost:8080/document-management/search?page=0&size=10" \
+  -H "Content-Type: application/json" \
+  -d '{"user": "john", "tags": ["invoice"]}'
+```
+
+Example response:
+```json
+{
+  "metadata": {
+    "currentPage": 0,
+    "itemsPerPage": 10,
+    "currentItems": 1,
+    "totalPages": 1,
+    "totalItems": 1
+  },
+  "documents": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "user": "john",
+      "name": "invoice-march.pdf",
+      "tags": ["invoice", "finance"],
+      "size": 204800,
+      "type": "application/pdf",
+      "createdAt": "2026-03-30T23:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+**3. Download a document (presigned URL)**
+
+Use the **Download Document** request — copy an `id` from the search response and set it as the `:documentId` path variable.
+
+```bash
+# curl equivalent
+curl http://localhost:8080/document-management/download/550e8400-e29b-41d4-a716-446655440000
+```
+
+Example response:
+```json
+{
+  "url": "http://localhost:9000/document-bucket/john/invoice-march.pdf?X-Amz-Algorithm=..."
+}
+```
+
+The returned URL is valid for **60 minutes** and can be opened directly in a browser to download the file.
+
+---
+
+#### Implementation Notes 📝
+
+**Memory constraint (50MB heap):**
+The upload endpoint accepts `multipart/form-data` and streams `MultipartFile.getInputStream()` directly into MinIO's `putObject()` call. Files are never fully loaded into the JVM heap — Spring spools large uploads to a temp disk file above the multipart threshold, and MinIO reads from that stream. This makes it possible to handle 500MB uploads within the 50MB heap limit.
+
+**Storage layout:**
+Files are stored in MinIO under `document-bucket/{user}/{documentName}`, matching the directory structure defined in the requirements.
+
+**Database schema:**
+Tags are stored in a separate `document_tags` table (one-to-many) rather than as an array column to ensure proper relational integrity, cascade deletes, and efficient tag-based filtering via SQL subqueries. Indices are created on `user_name`, `document_name`, `created_at` (DESC), and `tag` columns to support the expected query patterns.
+
+**Search:**
+Dynamic filtering is implemented using Spring Data JPA `Specification` — predicates are composed at runtime based on which filters are present. Tag filtering uses an `EXISTS` subquery to match documents that have **all** requested tags. Results are always ordered by `created_at DESC`.
+
+**Error handling:**
+A `@RestControllerAdvice` global handler maps all exceptions to structured `ApiError` responses with HTTP status, message, and timestamp. Validation errors include per-field details.
+
+**Assumptions:**
+- No authentication/authorization is required (not in the spec).
+- Document names are not required to be unique per user — the same user can upload multiple files with the same name (they overwrite in MinIO but get separate DB records).
+- The `file` field in the upload is required even though the OpenAPI spec shows the request as `application/json` — the actual contract is `multipart/form-data` since a binary file must be transferred.
 
 ---
 

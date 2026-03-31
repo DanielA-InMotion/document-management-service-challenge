@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "Document Management Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Upload Document",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/document-management/upload",
+          "host": ["{{baseUrl}}"],
+          "path": ["document-management", "upload"]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "user",
+              "value": "john",
+              "type": "text"
+            },
+            {
+              "key": "name",
+              "value": "invoice-march.pdf",
+              "type": "text"
+            },
+            {
+              "key": "tags",
+              "value": "invoice",
+              "type": "text"
+            },
+            {
+              "key": "tags",
+              "value": "finance",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Search Documents (no filters)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/document-management/search?page=0&size=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["document-management", "search"],
+          "query": [
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "10" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": { "language": "json" }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Search Documents (with filters)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/document-management/search?page=0&size=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["document-management", "search"],
+          "query": [
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "10" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"john\",\n  \"name\": \"invoice\",\n  \"tags\": [\"finance\"]\n}",
+          "options": {
+            "raw": { "language": "json" }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Download Document",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/document-management/download/:documentId",
+          "host": ["{{baseUrl}}"],
+          "path": ["document-management", "download", ":documentId"],
+          "variable": [
+            {
+              "key": "documentId",
+              "value": "replace-with-document-id"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
